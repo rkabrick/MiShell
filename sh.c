@@ -48,28 +48,28 @@ int sh(int argc, char **argv, char **envp){
     if (fgets(commandline, MAX_CANON, stdin) != NULL){
       int len = strlen(commandline);
       commandline[len-1] = '\0'; //replaces \n with terminator
-      if (strcmp(commandline, "q") == 0) {
-	return;
+      if (strcmp(commandline, "q") == 0 || strcmp(commandline, "exit") == 0) {
+		return;
       }
       char *ptr = strtok(commandline, " ");
-      args[0] = calloc(strlen(commandline), sizeof(char));
-      strcpy(args[0], commandline);
-      int i = 1;
+      //args[0] = calloc(strlen(commandline), sizeof(char));
+      //strcpy(args[0], commandline);
+      int i = 0;
       while (ptr != NULL) {
-	args[i] = calloc(strlen(ptr), sizeof(char));
-	strcpy(args[i], ptr);
+		args[i] = calloc(strlen(ptr), sizeof(char));
+		strcpy(args[i], ptr);
         ptr = strtok(NULL, " ");
-	i++;
+		i++;
       }
-      //args[i] = NULL;
+      args[i] = NULL;
       if(strcmp(commandline, "pwd") == 0){ //if pwd entered
         printf("%s", pwd = getcwd(NULL, PATH_MAX+1));
       }
 
       //Where
       else if (strcmp(commandline, "where") == 0) {
-	if (args[2] !=NULL) {
-          ptr = where(args[2], pathlist);
+	if (args[1] !=NULL) {
+          ptr = where(args[1], pathlist);
           if (ptr != NULL){
             printf("%s\n",ptr);
             free(ptr);
@@ -82,13 +82,13 @@ int sh(int argc, char **argv, char **envp){
 
       //Which
       else if (strcmp(commandline, "which") == 0) {
-	if (args[2] != NULL) {
-	  ptr = which(args[2], pathlist);
-	    if (ptr != NULL) {
-	      printf("%s\n", ptr);
-	      free(ptr);
-	    }
-	}
+		if (args[1] != NULL) {
+		  ptr = which(args[1], pathlist);
+		  if (ptr != NULL) {
+	      	printf("%s\n", ptr);
+	      	free(ptr);
+	      }
+		}
         else{
           printf("Error: Too few arguments");
           continue;
@@ -117,9 +117,12 @@ int sh(int argc, char **argv, char **envp){
         }
       }
       else if(strcmp(commandline, "printenv") == 0){
-        if (args[1] != NULL){
-          printEnv(envp);
+        if (args[2] != NULL){
+        	printf("Error: Too many arguments.\n"); //change to be same as tcsh
         }
+		else {
+			printEnv(args[1], envp); //if args[1] == NULL prints all
+		}
       }
       else if(strcmp(commandline, "cd") == 0){
       }
@@ -150,14 +153,23 @@ void ls(struct dirent *dirp, DIR *dp){
   }
 }
 
-void printEnv(char *env){
-  char *currEnv = getenv(env);
-  if (currEnv != NULL){
-    printf("%s", currEnv);
-  }
-  else{
-    printf("Environment is not valid");
-  }
+void printEnv(char *env, char **envlist){
+	if (env == NULL) {
+		int i = 0;
+		while(envlist[i] != NULL) {
+			printf("%s\n", envlist[i]);
+			i++;
+		}
+	}
+	else {
+		char *value;
+		if ((value = getenv(env)) != NULL) {
+			printf("%s : %s\n", env, value);
+		}
+		else {
+			printf("Error: Path variable not found.\n");
+		}
+	}
 }
 
 char *which(char *command, struct pathelement *pathlist )
@@ -199,3 +211,4 @@ char *where(char *command, struct pathelement *pathlist ){
   }
   return wherePath;
 }
+
