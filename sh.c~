@@ -1,0 +1,143 @@
+#include <stdio.h>
+#include <string.h>
+#include <strings.h>
+#include <limits.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <pwd.h>
+#include <dirent.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <signal.h>
+#include "sh.h"
+
+void sh(void){
+  char *prompt = calloc(PROMPTMAX, sizeof(char));
+  char *commandline = calloc(MAX_CANON, sizeof(char));
+  char *command, *arg, *commandpath, *p, *pwd, *owd;
+  char **args = calloc(MAXARGS, sizeof(char*));
+  int uid, i, status, argsct, go = 1;
+  struct passwd *password_entry;
+  char *homedir;
+  struct pathelement *pathlist = NULL;
+
+  uid = getuid();
+  password_entry = getpwuid(uid);               /* get passwd info */
+  homedir = password_entry->pw_dir;		/* Home directory to start
+        					  out with*/
+
+  if ( (pwd = getcwd(NULL, PATH_MAX+1)) == NULL )
+  {
+    perror("getcwd");
+    exit(2);
+  }
+  owd = calloc(strlen(pwd) + 1, sizeof(char));
+  memcpy(owd, pwd, strlen(pwd));
+  prompt[0] = ' '; prompt[1] = '\0';
+
+  /* Put PATH into a linked list */
+  pathlist = get_path();
+
+  do
+  {
+    /* print your prompt */
+    printf("\n[%s] >> ", pwd);
+    /* get command line and process */
+    if (fgets(commandline, MAX_CANON, stdin) != NULL){
+      int len = strlen(commandline);
+      commandline[len-1] = '\0'; //replaces \n with terminator
+      if (strcmp(commandline, "exit") == 0) {
+	return;
+      }
+      char *ptr = strtok(commandline, " ");
+      args[0] = calloc(strlen(commandline), sizeof(char));
+      strcpy(args[0], commandline);
+      int i = 1;
+      while (ptr != NULL) {
+	args[i] = calloc(strlen(ptr), sizeof(char));
+	strcpy(args[i], ptr);
+        ptr = strtok(NULL, " ");
+	i++;
+      }
+      args[i] = NULL;
+      if(strcmp(commandline, "pwd") == 0){ //if pwd entered
+        printf("\n%s", pwd = getcwd(NULL, PATH_MAX+1));
+      }
+
+      //Where
+      else if (strcmp(command, "where") == 0) {			        
+	if (args !=NULL) {	
+	  for (i = 0;*(args++); i++){
+	    where(args[i], pathlist);
+	  }
+	}
+      }
+
+      //Which
+      else if (strcmp(command, "which") == 0) {
+	if (args != NULL) {     
+	  for (i = 0; *(args++); i++) {
+	    ptr = which(args[i], pathlist);
+	    if (ptr != NULL) {
+	      printf("%s\n", ptr);
+	      free(ptr);
+	    }
+	  }
+	}
+      }
+      while(1);
+    }
+  }
+}
+
+
+
+char* getCommand(char **argv) {
+  if (argv == NULL){
+    return NULL;}
+
+  return argv[0];
+}
+
+char *which(char *command, struct pathelement *pathlist){
+
+  if (pathlist == NULL){
+    // Print error if command not found
+    fprintf(stderr, "%s: command not found\n", command);
+    return NULL;
+  }
+
+  char *pathElement = calloc(MAX_CANON, sizeof(char));
+  while (pathlist != NULL){
+    pathElement = pathlist -> element;
+    if (strcmp(command, pathElement) == 0){
+      return pathElement;
+    }
+
+    pathlist = pathlist -> next;
+  }
+
+  printf("Command %s not found", command);
+  return NULL;
+} /* which */
+
+char *where(char *command, struct pathelement *pathlist )
+{
+  char *comm = calloc(MAX_CANON, sizeof(char));
+  int commCount = 0;
+
+  while (pathlist != NULL){
+    comm = pathlist -> element;
+    if (strcmp(command, comm) == 0){
+      printf("%s \n", comm);
+      commCount++;
+    }
+    pathlist = pathlist -> next;
+  }
+
+  if (commCount == 0){
+    printf("Command %s not found", command);
+  }
+  return NULL;
+} /* where() */
+
